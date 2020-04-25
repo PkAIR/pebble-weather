@@ -1,7 +1,7 @@
 //
 //
 // Get your api key here https://openweathermap.org/appid 
-//
+// API documentation https://openweathermap.org/weather-conditions 
 //
 var API_KEY = "api_key";
 //
@@ -26,16 +26,16 @@ var STORM = 12;
 var NA = 13;
 
 var iconMap = {
-	"01d": CLEAR_DAY,
+    "01d": CLEAR_DAY,
     "01n": CLEAR_NIGHT,
     "02d": PARTLY_CLOUDY_DAY,
-    "02n": PARTLY_CLOUDY_NIGHT,    
+    "02n": PARTLY_CLOUDY_NIGHT,
     "03d": CLOUD,
     "03n": COLD,
     "04d": CLOUDY,
     "04n": CLOUDY,
     "09d": RAIN,
-	"09n": RAIN,
+    "09n": RAIN,
     "10d": RAIN,
     "10n": RAIN,
     "11d": STORM,
@@ -43,28 +43,34 @@ var iconMap = {
     "13d": SNOW,
     "13n": SNOW,
     "50d": HAZE,
-	"50n": HAZE
+    "50n": HAZE,
+    // special icons
+    "w": WINDY,
+    "h": HAZE
 }
 
 var options = JSON.parse(localStorage.getItem('options'));
-//console.log('read options: ' + JSON.stringify(options));
 if (options === null) options = { "use_gps" : "true",
                                   "location" : "",
                                   "units" : "celsius",
                                   "invert_color" : "false"};
 
 function getWeatherFromLatLong(latitude, longitude) {
-    console.log(latitude + ", " + longitude);
     var forecastReq = new XMLHttpRequest();
     var unitsCode = "metric"
-    if (options.units == "fahrenheit") unitsCode = "imperial"
-    else if (options.units == "celsius") unitsCode = "metric"
+    if (options.units == "fahrenheit") {
+      unitsCode = "imperial"
+    } else {
+      if (options.units == "celsius") {
+        unitsCode = "metric"
+      }
+    }
+
     var forecastUrl = "https://api.openweathermap.org/data/2.5/weather?lat=" + latitude 
         + "&lon=" + longitude + "&units=" + unitsCode + "&appid=" + API_KEY;
     forecastReq.open('GET', forecastUrl, true);
     forecastReq.onload = function(e)
     {
-        //console.log(e.status);
         if(forecastReq.status == 200)
         {
             var data = JSON.parse(forecastReq.responseText);
@@ -79,16 +85,42 @@ function getWeatherFromLatLong(latitude, longitude) {
     return;
 }
 
-function getWeatherForecastIO(data)
-{
+function getWeatherForecastIO(data) {
 	var temp = data.main.temp;
-	console.log("TEMP: " + temp);
-	var icon = data.weather[0].icon;
+	var icon = getWeatherIcon(data);
 	Pebble.sendAppMessage({
 		"icon" : iconMap[icon],
 		"temperature" : Math.round(temp) + "\u00B0",
 		"invert_color" : (options.invert_color == "true" ? 1 : 0),
 	});
+}
+
+function getWeatherIcon(data) {
+  var icon = data.weather[0].icon;
+
+  // Check for clear condition and a wind speed
+  if ((icon == "01d" || icon == "01n") && isHeavyWind(data))
+    return "w";
+
+  if (isHail(data))
+    return "h";
+  
+  return icon;
+}
+
+function isHeavyWind(data) {
+  if (options.units == "fahrenheit") {
+    return data.wind.speed > 12.3
+  } else if (options.units == "celsius") {
+    return data.wind.speed > 5.5;
+  }
+
+  return false;
+}
+
+function isHail(data) {
+  // ID 511 from OpenWeather equals to 'freezing rain'
+  return data.weather[0].id == 511;
 }
 
 var locationOptions = {
@@ -122,7 +154,6 @@ Pebble.addEventListener('showConfiguration', function(e) {
     '&units=' + encodeURIComponent(options.units) +
     '&invert_color=' + encodeURIComponent(options.invert_color) +
     '&account_token=' + encodeURIComponent(Pebble.getAccountToken());
-  //console.log('showing configuration at uri: ' + uri);
 
   Pebble.openURL(uri);
 });
@@ -131,22 +162,20 @@ Pebble.addEventListener('webviewclosed', function(e) {
   if (e.response) {
     options = JSON.parse(decodeURIComponent(e.response));
     localStorage.setItem('options', JSON.stringify(options));
-    //console.log('storing options: ' + JSON.stringify(options));
     updateWeather();
   } else {
-    console.log('no options received');
+    console.warn('no options received');
   }
 });
 
 Pebble.addEventListener("appmessage", function(e) {
   if(e.payload.request_weather) {
-    console.log("Got weather request from watch.");
+    console.info("Got weather request from watch.");
     updateWeather();
   }
 });
 
 Pebble.addEventListener("ready", function(e) {
-  //console.log("connect!" + e.ready);
   updateWeather();
-  console.log(e.type);
+  console.info(e.type);
 });
