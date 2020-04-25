@@ -1,7 +1,7 @@
 //
 //
-// Get your api key here https://openweathermap.org/appid 
-// API documentation https://openweathermap.org/weather-conditions 
+// Get your api key here https://openweathermap.org/appid
+// API documentation https://openweathermap.org/weather-conditions
 //
 var API_KEY = "api_key";
 //
@@ -49,6 +49,11 @@ var iconMap = {
     "h": HAZE
 }
 
+const TempUnits = {
+  "fahrenheit":"fahrenheit", 
+  "celsius":"celsius"}
+Object.freeze(TempUnits)
+
 var options = JSON.parse(localStorage.getItem('options'));
 if (options === null) options = { "use_gps" : "true",
                                   "location" : "",
@@ -58,10 +63,10 @@ if (options === null) options = { "use_gps" : "true",
 function getWeatherFromLatLong(latitude, longitude) {
     var forecastReq = new XMLHttpRequest();
     var unitsCode = "metric"
-    if (options.units == "fahrenheit") {
+    if (options.units == TempUnits.fahrenheit) {
       unitsCode = "imperial"
     } else {
-      if (options.units == "celsius") {
+      if (options.units == TempUnits.celsius) {
         unitsCode = "metric"
       }
     }
@@ -109,9 +114,9 @@ function getWeatherIcon(data) {
 }
 
 function isHeavyWind(data) {
-  if (options.units == "fahrenheit") {
+  if (options.units == TempUnits.fahrenheit) {
     return data.wind.speed > 12.3
-  } else if (options.units == "celsius") {
+  } else if (options.units == TempUnits.celsius) {
     return data.wind.speed > 5.5;
   }
 
@@ -140,9 +145,9 @@ function locationSuccess(pos) {
 }
 
 function locationError(err) {
-  console.warn('location error (' + err.code + '): ' + err.message);
+  console.warn('Location error (' + err.code + '): ' + err.message);
   Pebble.sendAppMessage({
-    "icon":11,
+    "icon":13,
     "temperature":""
   });
 }
@@ -164,7 +169,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
     localStorage.setItem('options', JSON.stringify(options));
     updateWeather();
   } else {
-    console.warn('no options received');
+    console.warn('No options received');
   }
 });
 
